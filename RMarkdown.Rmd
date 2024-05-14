@@ -1,0 +1,138 @@
+---
+title: "My First R"
+author: "Coby McCaig"
+date: "2024-03-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning=F, message=F)
+
+library(dplyr)
+library(ggplot2)
+```
+
+## Linear Regression
+
+Using the "ProstateData" dataset, create a predictive model to determine psa value based on the features from the data.  It is observed that patients with prostate cancer experience elevated psa value.
+
+```{r data}
+d= read.csv('ProstateData.csv')
+
+# str is a function that returns the structure of my data
+str(d)
+```
+
+```{r categorical}
+d = d %>%
+
+# mutate converts the numeric vector into a categorical variable (factor) with labels
+  mutate(svi = factor(svi, label =c("svi0", "svi1")))
+  
+str(d)
+
+```
+
+```{r cat1}
+
+# contrasts sets the contrasts for the factor being used in the model formula
+contrasts(d$svi)
+
+```
+
+```{r dist}
+d %>%
+  
+# ggplot creates a QQ plot of the variable to see if its normally distributed
+  ggplot(aes(sample = lpsa)) + geom_qq()
+
+```
+
+```{r relationships}
+d %>%
+  
+# Correlation matrix of all numeric pairs in the dataset excluding certain columns. 
+  select(-svi, -train) %>%
+  cor()
+
+```
+
+```{r}
+d %>%
+  
+# geom_boxplot creates a boxplot of the continuous variable's distribution. Visualizes the spread, central tendency, and outliers.
+  ggplot(aes(x=svi, y=lpsa, fill = svi))+geom_boxplot()
+
+```
+```{r statTest}
+library(broom)
+d %>%
+  
+# Creates a t-test comparing the variable's values across the different levels of another variable.
+  do(tidy(t.test(lpsa~svi, data= .))) %>%
+  select(p.value)
+
+```
+
+```{r splitData}
+
+# Splits the data in training and testing sets.
+trainD = d %>%
+  filter(train==T) %>%
+  select(-train)
+testD = d %>%
+  filter(train==F) %>%
+  select(-train)
+
+```
+
+```{r buildingModel}
+library(leaps)
+
+#"forward" method: Variable selection where variables are added to model one at a time starting with empty model
+# "exhaustive" method: For variable selection where all possible combinations of predictor variables are assessed i.e. less feasible because of possibility of large amount of predictors
+
+model = regsubsets(lpsa ~ . , data = trainD, method = "forward")
+
+summary(model)
+
+```
+
+```{r modelMetrics}
+# View adjusted R-squared value of each model
+summary(model)$adjr2
+
+```
+
+```{r modelMetrics2}
+
+# Residual sum of squares for linear regression model
+summary(model)$rss
+
+```
+```{r maxMetric}
+
+# Calculates index of maximum adjusted R-squared from the summary of linear regression model
+modelSum = summary(model)
+which.max(modelSum$adjr2)
+
+
+```
+
+
+```{r modelCoef}
+
+# Extracts the coefficients of linear regression model corresponding to the highest adjusted R-squared
+coef(model,which.max(modelSum$adjr2))
+
+```
+y=mx+b
+
+lpsa = x1 + x2 + x3 + x4 + x5 + x6 + x7 + b
+
+Model using max adjusted R Square that predicts psa (7 variables):
+
+lpsa = 0.574(x1) + 0.619(x2) - 0.019(x3) + 0.144(x4) + 0.742(x5) - 0.205(x6) + 0.009(x7) + 0.259
+
+     
+     
